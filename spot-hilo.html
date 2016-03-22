@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<!-- JSExDate.html -->
+<html lang="en">
+
+<head>
+<meta charset="utf-8">
+<style type="text/css">
+body,td,th {
+	font-family: Courier;
+	font-size: 11px;
+}
+</style>
+<title>Spot Reader</title>
+<script>
+  
+	var i=0;
+	var z=-1;
+	var spot=[];
+	var spots=[];
+	var mark="";
+	var market='Random 25';
+	var periode=Number(prompt("Periode TF 1m",5));
+	
+	periode = periode * 30;
+	
+	hilo = function (j){
+	  var h = {low: 0, high: 0, persen: 0},k = j.length;
+	  h.low = Math.min.apply(Math, j);
+	  h.high = Math.max.apply(Math, j);
+	  h.persen = ((j[k - 1] - h.low) / (h.high - h.low)) * 100;
+	return h.low, h.high, h.persen, h;};
+	
+	function begin() {
+		
+		var ws = new WebSocket('wss://www.binary.com/websockets/v3');
+		
+		ws.onopen = function(evt) {
+			ws.send(JSON.stringify({ticks:'R_25'}));
+		}			
+		
+		ws.onmessage = function(msg) {
+			i++;
+			z++;
+			
+			spots[i] = JSON.parse(msg.data).tick.quote;
+			spot[z] = spots[i];			
+			if(spots[i] > spots[i-1]){
+				mark = "▲";
+			} else {
+				mark = "▼";
+			};
+			
+			if(z <= periode){
+				sinyal = "wait " +(periode - z);
+			};
+			
+			if(z > periode){
+				var v = hilo(spot);
+				sinyal = v.persen.toFixed() + "%";
+				logic();
+				spot.shift()
+				z--;
+			};
+			
+			log(market +" TF 1m P" +(periode / 30), "market");
+			log("Spot " +mark +" " +spots[i], "spot");	
+			log("Trend " +sinyal, "sinyal");
+			log("Hi : " +v.high.toFixed(4), "high");
+			log("Md : " +(v.low + ((v.high - v.low) / 2)).toFixed(4),"mid");
+			log("Lo : " +v.low.toFixed(4), "low");
+		}
+		
+	}
+			
+	function log(info, id) {
+		var p = document.getElementById(id);
+			p.innerHTML = info;        
+	}
+	
+	function logic(){
+	
+	}
+			   
+	window.addEventListener("load", begin, false);
+	
+</script>
+</head>
+
+<body>
+<div id="market"></div>
+<div id="spot"></div>
+<div id="sinyal"></div>
+<div id="high"></div>
+<div id="mid"></div>
+<div id="low"></div>
+</body>
+</html>

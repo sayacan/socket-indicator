@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<!-- JSExDate.html -->
+<html lang="en">
+
+<head>
+<meta charset="utf-8">
+<style type="text/css">
+body,td,th {
+	font-family: Courier;
+	font-size: 11px;
+}
+</style>
+<title>Spot Reader Rsi HiLo</title>
+<script>
+  
+	var i=0;
+	var z=-1;
+	var spot=[];
+	var spots=[];
+	var mark="";
+	var market='Random 50';
+	var periode=10;//Number(prompt("Periode TF 1m",5));
+	
+	//periode *= 30;
+	
+	hilo = function (j){
+	  var h = {low: 0, high: 0, persen: 0},k = j.length;
+	  h.low = Math.min.apply(Math, j);
+	  h.high = Math.max.apply(Math, j);
+	  h.persen = ((j[k - 1] - h.low) / (h.high - h.low)) * 100;
+	return h.low, h.high, h.persen, h;};
+	
+	function begin() {
+		
+		var ws = new WebSocket('wss://www.binary.com/websockets/v3');
+		
+		ws.onopen = function(evt) {
+			ws.send(JSON.stringify({ticks:'R_50'}));
+		}			
+		
+		ws.onmessage = function(msg) {
+			i++;
+			z++;
+			
+			spots[i] = JSON.parse(msg.data).tick.quote;
+			spot[z] = spots[i];			
+			if(spots[i] > spots[i-1]){
+				mark = "▲";
+			} else {
+				mark = "▼";
+			};
+			
+			if(z < periode){
+				trend = "wait " +(periode - z);
+				rsi = "wait " +(periode - z);
+			};
+			
+			if (z == periode){
+			  var ch, avg = 0, avl = 0, AvG, AvL, rsi;
+			  for (var l = 1; l < periode; l++){
+				ch = spot[l] - spot[l - 1];
+				if (ch > 0){avg += ch;} else {avl += Math.abs(ch);}
+			  };
+			  AvG = avg / periode;
+			  AvL = avl / periode;
+			  if (AvL == 0){rsi = 100} else {rsi = 100 - (100 / (1 + (AvG / AvL)))};
+			  avg = 0;
+			  avl = 0;
+			};
+			
+			if(z > periode){
+				var v = hilo(spot);
+				trend = v.persen.toFixed() + "%";
+				
+				ch = spot[z] - spot[z - 1];
+				if (ch > 0){
+					avg += ch;
+					avl = 0;
+				} else {
+					avl += Math.abs(ch);
+					avg = 0;
+				};
+				AvG = (AvG * (periode - 1) + avg) / periode;
+				AvL = (AvL * (periode - 1) + avl) / periode;
+				if (AvL == 0){rsi = 100} else {rsi = 100 - (100 / (1 + (AvG / AvL)))};
+				logic();
+				spot.shift();
+				z--;
+			};
+			
+			log(market,"market");// +" TF 1m P" +(periode / 30), "market");
+			log("Spot " +mark +" " +spots[i], "spot");	
+			log("Rsi " +rsi, "rsi");
+			log("Trend " +trend, "hilo");
+			log("Hi : " +v.high.toFixed(4), "high");
+			log("Md : " +(v.low + ((v.high - v.low) / 2)).toFixed(4),"mid");
+			log("Lo : " +v.low.toFixed(4), "low");
+		}
+		
+	}
+			
+	function log(info, id) {
+		var p = document.getElementById(id);
+			p.innerHTML = info;        
+	}
+	
+	function logic(){
+	
+	}
+			   
+	window.addEventListener("load", begin, false);
+	
+</script>
+</head>
+
+<body>
+<div id="market"></div>
+<div id="spot"></div>
+<div id="rsi"></div>
+<div id="hilo"></div>
+<div id="high"></div>
+<div id="mid"></div>
+<div id="low"></div>
+</body>
+</html>
