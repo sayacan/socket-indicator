@@ -1,0 +1,122 @@
+<html>
+<head>
+<title>Highcharts Binary</title>
+   <script src="http://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+   <script src="http://code.highcharts.com/highcharts.js"></script> 
+</head>
+<style type="text/css">
+body,td,th {
+	font-family: Courier;
+	font-size: 11px;
+}
+</style>
+<body>
+<div id="spot"></div>
+<div id="status"></div>
+<br>
+<div id="container" style="width: 550px; height: 400px; margin: 0 auto"></div>
+<script language="JavaScript">
+var urlws = 'wss://www.binary.com/websockets/v3';
+var i = 0;
+var j = -1;
+var sma = [];
+var wma = [];
+var ticks = [];
+var spot = [];
+var periode = 30;
+var market = 'R_100';
+
+getwma = function(array) {
+  var weightedArray = [],
+    period = array.length;
+  for (var i = 0; i <= array.length - period; i++) {
+    var sum = 0;
+    for (var j = 0; j < period; j++) {
+      sum += array[i + j] * (period - j);
+    }
+    weightedArray = sum / ((period * (period + 1)) / 2);
+  }
+  return weightedArray;
+};
+
+getsma = function(array) {
+  var average = [],
+    sum = 0,
+    period = array.length;
+  for (var i = 0; i < period; i++) {
+    sum += array[i];
+  }
+  average = sum / period;
+  return average;
+};
+
+gethilo = function(j) {
+  var h = {
+      low: 0,
+      high: 0,
+      persen: 0
+    },
+    k = j.length;
+  h.low = Math.min.apply(Math, j);
+  h.high = Math.max.apply(Math, j);
+  h.persen = ((j[k - 1] - h.low) / (h.high - h.low)) * 100;
+  return h.low, h.high, h.persen, h;
+};
+
+ws = new WebSocket(urlws);
+ws.onopen = function() {
+  ws.send(JSON.stringify({
+    ticks: market
+  }));
+}
+
+ws.onmessage = function(msg) {
+  i++;
+  j++;
+
+  var data = JSON.parse(msg.data);
+  ticks[i] = data.tick.quote;
+  spot[j] = Number(ticks[i]);
+  prices = ticks[i];
+
+  if (j <= periode) {
+    status = "wait " + (periode - j);
+  }
+
+  if (j > periode) {
+    hilo = gethilo(spot);
+    sma.push(getsma(spot));
+	wma.push(getwma(spot));
+    status = "Trend " +hilo.persen.toFixed() +"%" +"<br>WMA : " +getwma(spot).toFixed(4)+"<br>SMA : " +getsma(spot).toFixed(4) +"<br>High: " +hilo.high.toFixed(4) +"<br>Low : " +hilo.low.toFixed(4);
+    
+    $('#container').highcharts({ 
+	  title: {
+        text: 'web-indicator'
+      },
+	  xAxis: {
+        max: 10 //you can set the maximum here
+	  },
+      series: [{
+          name: 'prices',
+          data: spot
+        },{
+          name: 'wma',
+          data: wma,
+          marker: {enabled: false}
+        },{
+          name: 'sma',
+          data: sma,
+          marker: {enabled: false}
+        }
+      ]});
+    if(sma.length >= periode){sma.shift();}  
+    if(wma.length >= periode){wma.shift();}
+    spot.shift();
+    j--;
+  };
+  $('#spot').html("Prices " + market + " - " + prices);
+  $('#status').html(status);
+}
+</script>
+</body>
+</html>
